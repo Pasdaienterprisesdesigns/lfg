@@ -15,6 +15,7 @@ ETHERSCAN_API_KEY = "972W1N6UZ2IC6MXZJ32G7JJJT4UNMRNP6B"
 ETHERSCAN_BASE_URL = "https://api.etherscan.io/api"
 MAX_BLOCKS = 100
 FETCH_TIMEOUT = 60  # seconds
+GAS_THRESHOLD = 50
 
 # --- Helpers ---
 def safe_get(url, params=None, timeout=10):
@@ -33,8 +34,7 @@ def get_latest_block():
         return int(data['result'], 16)
     return 0
 
-# --- Cached Fetch ---
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_recent_txs(limit_blocks=100):
     limit_blocks = min(limit_blocks, MAX_BLOCKS)
     latest_block = get_latest_block()
@@ -86,18 +86,14 @@ def fetch_recent_txs(limit_blocks=100):
     progress_bar.empty()
     status_text.empty()
 
-    if not all_txs:
-        st.error("No transactions found from Etherscan API.")
-        return pd.DataFrame()
-
     if timestamps:
         min_time = datetime.fromtimestamp(min(timestamps)).strftime('%Y-%m-%d %H:%M:%S')
         max_time = datetime.fromtimestamp(max(timestamps)).strftime('%Y-%m-%d %H:%M:%S')
         st.info(f"⏳ Time Range Covered: {min_time} UTC → {max_time} UTC")
 
+    st.success(f"✅ Total blocks fetched: {i + 1}, Total transactions collected: {len(all_txs)}")
     return pd.DataFrame(all_txs)
 
-# --- Detection & Clustering ---
 def detect_sandwich(txs):
     recs = []
     for i in range(1, len(txs)-1):
@@ -132,7 +128,6 @@ def dbscan_cluster(txs):
     txs['cluster'] = lbls
     return txs[txs['cluster'] != -1]
 
-# --- Streamlit Dashboard ---
 def run_dashboard():
     st.set_page_config(layout="wide")
     st.title("🔎 MEV Bot Detector Dashboard")
@@ -156,7 +151,8 @@ def run_dashboard():
         return
 
     st.subheader("📊 1. High-Gas Transactions")
-    st.dataframe(txs.head(100))
+    high_gas_df = txs[txs['gasPrice'] >= GAS_THRESHOLD].sort_values(by='gasPrice', ascending=False)
+    st.dataframe(high_gas_df)
 
     st.subheader("🦊 2. Detected Sandwich Attacks")
     sandwiches = detect_sandwich(txs)
@@ -166,7 +162,7 @@ def run_dashboard():
         st.dataframe(sandwiches)
         for _, r in sandwiches.iterrows():
             st.markdown(
-                f"**Block {r.block}**: Victim `{r.victim_hash}` sandwiched between `{r.front_hash}` and `{r.back_hash}` with gas bids {r.front_gas:.1f}, {r.victim_gas:.1f}, {r.back_gas:.1f} Gwei."
+                f"**Block {r.block}:** Victim `{r.victim_hash}` sandwiched between `{r.front_hash}` (front) and `{r.back_hash}` (back) with gas bids: **Front: {r.front_gas:.1f} Gwei**, **Victim: {r.victim_gas:.1f} Gwei**, **Back: {r.back_gas:.1f} Gwei**."
             )
 
     st.subheader("🚨 3. Anomalous Transactions")
@@ -195,11 +191,11 @@ def run_dashboard():
                     'x': {'field': 'blockNumber', 'type': 'quantitative', 'title': 'Block'},
                     'y': {'field': 'gasPrice',    'type': 'quantitative', 'title': 'Gas (Gwei)'},
                     'color': {'field': 'cluster', 'type': 'nominal', 'title': 'Cluster'}
-                }
+                },
+                'config': {'axis': {'grid': True}}
             },
             use_container_width=True
         )
 
-# --- Run the dashboard ---
 if __name__ == "__main__":
     run_dashboard()
