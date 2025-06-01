@@ -7,7 +7,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 
 # --- Config ---
@@ -87,8 +87,8 @@ def fetch_recent_txs(limit_blocks=100):
     status_text.empty()
 
     if timestamps:
-        min_time = datetime.fromtimestamp(min(timestamps)).strftime('%Y-%m-%d %H:%M:%S')
-        max_time = datetime.fromtimestamp(max(timestamps)).strftime('%Y-%m-%d %H:%M:%S')
+        min_time = datetime.fromtimestamp(min(timestamps), tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        max_time = datetime.fromtimestamp(max(timestamps), tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         st.info(f"⏳ Time Range Covered: {min_time} UTC → {max_time} UTC")
 
     st.success(f"✅ Total blocks fetched: {i + 1}, Total transactions collected: {len(all_txs)}")
@@ -162,7 +162,7 @@ def run_dashboard():
         st.dataframe(sandwiches)
         for _, r in sandwiches.iterrows():
             st.markdown(
-                f"**Block {r.block}:** Victim `{r.victim_hash}` sandwiched between `{r.front_hash}` (front) and `{r.back_hash}` (back) with gas bids: **Front: {r.front_gas:.1f} Gwei**, **Victim: {r.victim_gas:.1f} Gwei**, **Back: {r.back_gas:.1f} Gwei**."
+                f"**Block {r.block}:** Victim `{r.victim_hash}` sandwiched between `{r.front_hash}` (front) and `{r.back_hash}` (back) — **Gas Bids:** Front: `{r.front_gas:.1f} Gwei`, Victim: `{r.victim_gas:.1f} Gwei`, Back: `{r.back_gas:.1f} Gwei`."
             )
 
     st.subheader("🚨 3. Anomalous Transactions")
@@ -189,7 +189,7 @@ def run_dashboard():
                 'mark': 'circle',
                 'encoding': {
                     'x': {'field': 'blockNumber', 'type': 'quantitative', 'title': 'Block'},
-                    'y': {'field': 'gasPrice',    'type': 'quantitative', 'title': 'Gas (Gwei)'},
+                    'y': {'field': 'gasPrice',    'type': 'quantitative', 'title': 'Gas (Gwei)', 'scale': {'domain': [0, max(clusters['gasPrice'].max(), GAS_THRESHOLD)]}},
                     'color': {'field': 'cluster', 'type': 'nominal', 'title': 'Cluster'}
                 },
                 'config': {'axis': {'grid': True}}
