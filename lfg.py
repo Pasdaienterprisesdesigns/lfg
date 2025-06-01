@@ -13,7 +13,7 @@ import time
 # --- Config ---
 ETHERSCAN_API_KEY = "972W1N6UZ2IC6MXZJ32G7JJJT4UNMRNP6B"
 ETHERSCAN_BASE_URL = "https://api.etherscan.io/api"
-MAX_BLOCKS = 200
+MAX_BLOCKS = 100
 FETCH_TIMEOUT = 60  # seconds
 
 # --- Helpers ---
@@ -147,7 +147,7 @@ def run_dashboard():
 
     **4. MEV Bot Clusters** – Groups of transactions likely sent by the same bot (based on gas patterns).
 
-    👉 Use the sidebar to set how many blocks you want to fetch (max 200).
+    👉 Use the sidebar to set how many blocks you want to fetch (max 100).
     """)
 
     block_count = st.sidebar.slider("Number of Blocks to Fetch", 10, MAX_BLOCKS, 50, step=10)
