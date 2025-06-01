@@ -34,7 +34,6 @@ def get_latest_block():
         return int(data['result'], 16)
     return 0
 
-@st.cache_data(ttl=300, show_spinner=False)
 def fetch_recent_txs(limit_blocks=100):
     limit_blocks = min(limit_blocks, MAX_BLOCKS)
     latest_block = get_latest_block()
